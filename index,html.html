@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orange Money Analyzer — Reprenez le contrôle de votre argent</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= HEADER ================= -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">OM</div>
+      <div class="brand-text">
+        <h1>Orange Money <span>Analyzer</span></h1>
+        <p data-i18n="brand.tagline">Reprenez le contrôle de votre argent.</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="datetime" id="datetime" aria-live="polite">—</div>
+      <button id="refreshBtn" class="icon-btn" type="button" title="Rafraîchir (F5)" aria-label="Rafraîchir">
+        <span class="icon-refresh">⟳</span>
+      </button>
+      <div class="lang-switch" role="group" aria-label="Langue">
+        <button type="button" class="lang-btn active" data-lang="fr">FR</button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= NAVIGATION PAGES ================= -->
+  <nav class="page-nav">
+    <button class="page-nav-btn active" data-page="home" data-i18n="nav.home">🏠 Accueil</button>
+    <button class="page-nav-btn" data-page="about" data-i18n="nav.about">ℹ️ À propos</button>
+    <button class="page-nav-btn" data-page="contact" data-i18n="nav.contact">✉️ Contact</button>
+    <button class="page-nav-btn" data-page="disclaimer" data-i18n="nav.disclaimer">⚠️ Disclaimer</button>
+  </nav>
+
+  <!-- ================= PAGE HOME ================= -->
+  <div id="page-home" class="page active">
+
+    <!-- UPLOAD -->
+    <section class="card upload-card">
+      <label id="dropzone" class="dropzone" for="fileInput">
+        <div class="dz-icon">📄</div>
+        <div class="dz-title" data-i18n="upload.title">Glissez votre relevé Orange Money (PDF) ici</div>
+        <div class="dz-sub">
+          <span data-i18n="upload.or">ou</span>
+          <span class="link" data-i18n="upload.browse">cliquez pour parcourir</span>
+          <span data-i18n="upload.files">vos fichiers</span>
+        </div>
+        <div class="dz-hint" data-i18n="upload.hint">Format accepté : .pdf — Traitement instantané, rien n'est téléversé</div>
+      </label>
+      <input type="file" id="fileInput" accept="application/pdf" hidden>
+
+      <div id="status" class="status hidden"></div>
+      <div id="errorBox" class="error-box hidden"></div>
+
+      <div class="upload-actions">
+        <button id="loadDemoBtn" class="btn btn-ghost" type="button" data-i18n="btn.demo">🧪 Charger un exemple de démo</button>
+        <button id="resetBtn" class="btn btn-ghost hidden" type="button" data-i18n="btn.reset">♻️ Réinitialiser</button>
+      </div>
+
+      <p class="privacy-note" data-i18n="privacy">🔒 100 % local — vos données ne quittent pas votre navigateur</p>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="hidden">
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="insights.title">💡 Analyse automatique</h2>
+        <ul id="insightsList" class="insights"></ul>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="stats.title">📐 Statistiques descriptives des dépenses</h2>
+        <div class="stats-grid" id="statsGrid"></div>
+      </section>
+
+      <section class="card filters-card">
+        <h2 class="card-title" data-i18n="filters.title">🎛️ Filtres</h2>
+        <div class="filters">
+          <div class="field">
+            <label for="searchInput" data-i18n="filters.search">Recherche</label>
+            <input type="text" id="searchInput" data-i18n-placeholder="filters.searchPlaceholder" placeholder="Ex : 100001, Woyofal, Retrait…">
+          </div>
+          <div class="field">
+            <label for="filterCategory" data-i18n="filters.category">Catégorie</label>
+            <select id="filterCategory"></select>
+          </div>
+          <div class="field">
+            <label for="filterType" data-i18n="filters.type">Type d'opération</label>
+            <select id="filterType">
+              <option value="all" data-i18n="filters.typeAll">Toutes</option>
+              <option value="out" data-i18n="filters.typeOut">Dépenses uniquement</option>
+              <option value="in" data-i18n="filters.typeIn">Entrées uniquement</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filterMonth" data-i18n="filters.period">Période</label>
+            <select id="filterMonth"></select>
+          </div>
+          <div class="field field-btn">
+            <button id="clearFilters" class="btn btn-ghost" type="button" data-i18n="filters.clear">Effacer les filtres</button>
+          </div>
+        </div>
+      </section>
+
+      <h2 class="section-title" data-i18n="section.overview">📌 Vue d'ensemble</h2>
+      <section class="charts-grid">
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.categories">🍩 Répartition des dépenses par catégorie</h3><div class="chart-box"><canvas id="chartCategories"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.monthly">📊 Entrées vs Dépenses par mois</h3><div class="chart-box"><canvas id="chartMonthly"></canvas></div></div>
+        <div class="card chart-card wide"><h3 class="card-title" data-i18n="charts.balance">📈 Évolution du solde cumulé</h3><div class="chart-box"><canvas id="chartBalance"></canvas></div></div>
+        <div class="card chart-card wide"><h3 class="card-title" data-i18n="charts.cumulative">💰 Dépenses cumulées vs Entrées cumulées</h3><div class="chart-box"><canvas id="chartCumulative"></canvas></div></div>
+      </section>
+
+      <h2 class="section-title" data-i18n="section.detailed">🔍 Analyse détaillée</h2>
+      <section class="charts-grid">
+        <div class="card chart-card wide"><h3 class="card-title" data-i18n="charts.catEvolution">📚 Évolution des catégories par mois (empilé)</h3><div class="chart-box"><canvas id="chartCatEvolution"></canvas></div></div>
+        <div class="card chart-card wide"><h3 class="card-title" data-i18n="charts.daily">🗓️ Dépenses quotidiennes</h3><div class="chart-box chart-box-tall"><canvas id="chartDaily"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.weekOfMonth">📆 Dépenses par semaine du mois</h3><div class="chart-box"><canvas id="chartWeekOfMonth"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.hourly">🕐 Répartition horaire des transactions</h3><div class="chart-box"><canvas id="chartHourly"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.amountDist">📊 Distribution des montants (histogramme)</h3><div class="chart-box"><canvas id="chartAmountDist"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.top">🏪 Top 8 des destinataires / marchands</h3><div class="chart-box"><canvas id="chartTop"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.monthlyRatio">⚖️ Taux d'épargne mensuel</h3><div class="chart-box"><canvas id="chartMonthlyRatio"></canvas></div></div>
+        <div class="card chart-card"><h3 class="card-title" data-i18n="charts.avgTicket">🎫 Ticket moyen par catégorie</h3><div class="chart-box"><canvas id="chartAvgTicket"></canvas></div></div>
+      </section>
+
+      <h2 class="section-title" data-i18n="section.tables">📋 Tableaux détaillés</h2>
+
+      <section class="card">
+        <h3 class="card-title" data-i18n="topDays.title">🔥 Top 5 des journées les plus dépensières</h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th class="num">#</th><th data-i18n="topDays.date">Date</th><th class="num" data-i18n="topDays.count">Nb transactions</th><th class="num" data-i18n="topDays.total">Total dépensé</th><th class="num" data-i18n="topDays.avg">Moyenne / transaction</th></tr></thead><tbody id="topDaysBody"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title" data-i18n="monthly.title">📋 Comparaison mensuelle</h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th data-i18n="monthly.month">Mois</th><th class="num" data-i18n="monthly.in">Entrées</th><th class="num" data-i18n="monthly.out">Dépenses</th><th class="num" data-i18n="monthly.net">Solde</th><th class="num" data-i18n="monthly.ops">Opérations</th><th class="num" data-i18n="monthly.avg">Dépense moy.</th></tr></thead><tbody id="monthlyTableBody"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title" data-i18n="top10.title">🔝 Top 10 des plus grosses dépenses</h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th class="num">#</th><th data-i18n="top10.date">Date</th><th data-i18n="top10.label">Libellé</th><th data-i18n="top10.category">Catégorie</th><th class="num" data-i18n="top10.amount">Montant</th></tr></thead><tbody id="top10Body"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title" data-i18n="recurring.title">🔁 Paiements récurrents détectés</h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th data-i18n="recurring.name">Bénéficiaire / Marchand</th><th class="num" data-i18n="recurring.count">Occurrences</th><th class="num" data-i18n="recurring.avg">Montant moyen</th><th class="num" data-i18n="recurring.total">Total cumulé</th></tr></thead><tbody id="recurringBody"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="table-head">
+          <h3 class="card-title"><span data-i18n="tx.title">🧾 Détail des transactions</span> <span id="txCount" class="badge"></span></h3>
+          <button id="exportCsv" class="btn btn-primary" type="button" data-i18n="tx.export">⬇️ Exporter en CSV</button>
+        </div>
+        <div class="table-wrap scrollable"><table class="data-table"><thead><tr><th data-i18n="tx.date">Date</th><th data-i18n="tx.label">Libellé</th><th data-i18n="tx.category">Catégorie</th><th class="num" data-i18n="tx.amount">Montant</th></tr></thead><tbody id="txBody"></tbody></table></div>
+      </section>
+    </section>
+  </div>
+
+  <!-- ================= PAGE ABOUT ================= -->
+  <div id="page-about" class="page">
+    <section class="card">
+      <h2 class="card-title" data-i18n="about.title">ℹ️ À propos de Orange Money Analyzer</h2>
+      <p data-i18n="about.intro">Orange Money Analyzer est un outil d'analyse indépendant conçu pour vous aider à mieux comprendre vos relevés de transactions mobile money.</p>
+      <p data-i18n="about.purpose">Notre objectif est de fournir une visualisation claire et détaillée de vos habitudes de dépenses, sans jamais compromettre votre vie privée.</p>
+      <h3 data-i18n="about.features">Fonctionnalités principales</h3>
+      <ul>
+        <li data-i18n="about.f1">📄 Analyse locale de fichiers PDF — aucune donnée envoyée sur un serveur</li>
+        <li data-i18n="about.f2">📊 Graphiques interactifs (catégories, tendances mensuelles, distribution horaire)</li>
+        <li data-i18n="about.f3">📐 Statistiques descriptives avancées (médiane, quartiles, écart-type)</li>
+        <li data-i18n="about.f4">🔍 Détection automatique des paiements récurrents</li>
+        <li data-i18n="about.f5">🌍 Interface multilingue (Français / Anglais)</li>
+        <li data-i18n="about.f6">⬇️ Export CSV des transactions filtrées</li>
+      </ul>
+      <h3 data-i18n="about.independent">Outil indépendant</h3>
+      <p data-i18n="about.independentText">Orange Money Analyzer est un outil indépendant. Il n'est ni développé, ni édité, ni affilié, ni approuvé, ni sponsorisé par Orange, Orange Money, ni par aucune de leurs filiales ou partenaires.</p>
+    </section>
+  </div>
+
+  <!-- ================= PAGE CONTACT ================= -->
+  <div id="page-contact" class="page">
+    <section class="card">
+      <h2 class="card-title" data-i18n="contact.title">✉️ Contact</h2>
+      <p data-i18n="contact.intro">Pour toute question, suggestion ou signalement de bug, vous pouvez nous contacter :</p>
+      <div class="contact-grid">
+        <div class="contact-item">
+          <div class="contact-icon">📧</div>
+          <div class="contact-label" data-i18n="contact.email">Email</div>
+          <div class="contact-value">contact@orange-money-analyzer.example</div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">🐛</div>
+          <div class="contact-label" data-i18n="contact.bugs">Rapports de bugs</div>
+          <div class="contact-value">bugs@orange-money-analyzer.example</div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">💡</div>
+          <div class="contact-label" data-i18n="contact.suggestions">Suggestions</div>
+          <div class="contact-value">ideas@orange-money-analyzer.example</div>
+        </div>
+      </div>
+      <p class="contact-note" data-i18n="contact.note">🔒 Aucun fichier PDF ne doit être envoyé par email. Toutes les analyses sont effectuées localement dans votre navigateur.</p>
+    </section>
+  </div>
+
+  <!-- ================= PAGE DISCLAIMER ================= -->
+  <div id="page-disclaimer" class="page">
+    <section class="card">
+      <h2 class="card-title" data-i18n="disclaimer.title">⚠️ Avertissement &amp; mentions légales</h2>
+      <div class="disclaimer-content">
+        <h3 data-i18n="disclaimer.section1.title">1. Outil indépendant</h3>
+        <p data-i18n="disclaimer.section1.text">Orange Money Analyzer est un outil indépendant. Il n'est ni développé, ni édité, ni affilié, ni approuvé, ni sponsorisé par Orange, Orange Money, ni par aucune de leurs filiales ou partenaires. Les marques et logos cités appartiennent à leurs propriétaires respectifs et sont mentionnés uniquement à titre descriptif.</p>
+
+        <h3 data-i18n="disclaimer.section2.title">2. Exclusion de responsabilité</h3>
+        <p data-i18n="disclaimer.section2.text">L'utilisateur est seul responsable des données qu'il importe dans cet outil. L'éditeur ne saurait être tenu responsable de toute erreur, omission, inexactitude, perte de données, ou conséquence directe ou indirecte résultant de l'utilisation de ce site. Cet outil ne constitue en aucun cas un conseil financier, fiscal ou juridique.</p>
+
+        <h3 data-i18n="disclaimer.section3.title">3. Confidentialité</h3>
+        <p data-i18n="disclaimer.section3.text">Aucun fichier, aucune donnée et aucun résultat ne sont transmis à un serveur. Tout le traitement est effectué localement, dans votre navigateur.</p>
+
+        <h3 data-i18n="disclaimer.section4.title">4. Propriété intellectuelle</h3>
+        <p data-i18n="disclaimer.section4.text">Tous droits réservés. Toutes les marques, logos, noms de produits et services, ainsi que tous les liens externes mentionnés sur ce site, appartiennent à leurs propriétaires légitimes respectifs. Leur mention est purement descriptive et ne constitue en aucun cas une affiliation, un partenariat ou une approbation.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="app-footer">
+
+    <!-- Pays Orange Money -->
+    <div class="footer-card countries-card">
+      <h3 data-i18n="footer.countries.title">🌍 Pays où Orange Money est présent</h3>
+      <div class="countries-grid" id="countriesGrid"></div>
+      <p class="countries-note" data-i18n="footer.countries.note">Orange Money est disponible dans 17 pays d'Afrique et du Moyen-Orient. Cette liste est fournie à titre indicatif et peut évoluer.</p>
+    </div>
+
+    <!-- Disclaimer + Droits -->
+    <div class="footer-card">
+      <h3 data-i18n="footer.title">⚠️ Avertissement &amp; mentions légales</h3>
+      <p data-i18n="footer.independent"><strong>Orange Money Analyzer est un outil indépendant.</strong> Il n'est ni développé, ni édité, ni affilié, ni approuvé, ni sponsorisé par <strong>Orange</strong>, <strong>Orange Money</strong>, ni par aucune de leurs filiales ou partenaires. Les marques et logos cités appartiennent à leurs propriétaires respectifs et sont mentionnés uniquement à titre descriptif.</p>
+      <p data-i18n="footer.responsibility"><strong>Exclusion de responsabilité :</strong> l'utilisateur est seul responsable des données qu'il importe dans cet outil. L'éditeur ne saurait être tenu responsable de toute erreur, omission, inexactitude, perte de données, ou conséquence directe ou indirecte résultant de l'utilisation de ce site. Cet outil ne constitue en aucun cas un conseil financier, fiscal ou juridique.</p>
+      <p data-i18n="footer.privacy"><strong>Confidentialité :</strong> aucun fichier, aucune donnée et aucun résultat ne sont transmis à un serveur. Tout le traitement est effectué localement, dans votre navigateur.</p>
+      <p data-i18n="footer.trademarks"><strong>Marques et liens :</strong> toutes les marques, logos, noms de produits et services, ainsi que tous les liens externes mentionnés sur ce site, appartiennent à leurs propriétaires légitimes respectifs. Leur mention est purement descriptive et ne constitue en aucun cas une affiliation, un partenariat ou une approbation.</p>
+    </div>
+
+    <!-- Copyright -->
+    <p class="footer-copy" data-i18n="footer.copy">© Orange Money Analyzer — Tous droits réservés. Outil d'analyse indépendant. Aucune affiliation avec Orange.</p>
+    <p class="footer-copy" data-i18n="footer.copy2">Toutes les marques et tous les liens mentionnés appartiennent à leurs propriétaires légitimes respectifs.</p>
+  </footer>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
