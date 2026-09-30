@@ -1,5 +1,7 @@
 # Orange Money Analyzer
 
+https://buymeacoffee.com/albertosassetti
+
 A fully client-side web tool for analyzing Orange Money PDF statements.
 All processing happens locally in the browser. No data is ever uploaded to a server.
 
